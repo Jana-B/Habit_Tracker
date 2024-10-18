@@ -16,7 +16,7 @@ db = client['habit_tracker']
 # Collections
 users = db['users']
 habits = db['habits']
-entries = db['entries']
+
 
 def get_users_collection():
     return users
@@ -24,5 +24,3 @@ def get_users_collection():
 def get_habits_collection():
     return habits
 
-def get_entries_collection():
-    return entries

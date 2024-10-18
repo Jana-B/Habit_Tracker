@@ -1,71 +1,79 @@
-from database import get_users_collection, get_habits_collection, get_entries_collection
-import bcrypt
-from bson.objectid import ObjectId
+from pymongo import MongoClient
+from bson import ObjectId
+from datetime import datetime, timedelta
 
 class User:
-    def __init__(self, username, hashed_password):
-        self.username = username
-        self.hashed_password = hashed_password
+    def __init__(self, db):
+        self.collection = db['users']
 
-    def save(self):
-        return get_users_collection().insert_one({
-            'username': self.username,
-            'hashed_password': self.hashed_password
-        })
+    def create_user(self, username, hashed_password):
+        user_data = {
+            "username": username,
+            "hashed_password": hashed_password,
+            "profile_pic": None
+        }
+        return self.collection.insert_one(user_data)
 
-    @staticmethod
-    def find_by_id(user_id):
-        return get_users_collection().find_one({"_id": ObjectId(user_id)})
+    def find_user_by_username(self, username):
+        return self.collection.find_one({"username": username})
 
-    @staticmethod
-    def find_by_username(username):
-        return get_users_collection().find_one({'username': username})
+    def find_user_by_id(self, user_id):
+        return self.collection.find_one({"_id": ObjectId(user_id)})
 
-    @staticmethod
-    def hash_password(password):
-        return bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
+    def update_profile_pic(self, user_id, pic_url):
+        self.collection.update_one(
+            {"_id": ObjectId(user_id)}, 
+            {"$set": {"profile_pic": pic_url}}
+        )
 
-    @staticmethod
-    def verify_password(plain_password, hashed_password):
-        # Check if hashed_password is already in bytes
-        if isinstance(hashed_password, str):
-            hashed_password = hashed_password.encode('utf-8')  # Convert to bytes if it's a string
-        return bcrypt.checkpw(plain_password.encode('utf-8'), hashed_password)
 
 class Habit:
-    def __init__(self, user_id, name, color=None, icon=None, count=0):
+    def __init__(self, db, user_id):
+        self.collection = db['habits']
         self.user_id = user_id
-        self.name = name
-        self.color = color
-        self.icon = icon
-        self.count = count 
 
-    def save(self):
-        return get_habits_collection().insert_one({
-            'user_id': self.user_id,
-            'name': self.name,
-            'color': self.color,
-            'icon': self.icon,
-            'count': self.count
-        })
-        
-    @staticmethod
-    def find_by_user_id(user_id):
-        return list(get_habits_collection().find({'user_id': user_id}))
-    
-    @staticmethod
-    def update_count(habit_id, new_count):
-        get_habits_collection().update_one({"_id": habit_id}, {"$set": {"count": new_count}})
+    def add_habit(self, name, color):
+        habit_data = {
+            "user_id": ObjectId(self.user_id),
+            "name": name,
+            "color": color,
+            "count": 0,
+            "history": [],
+            "last_reset": datetime.now()
+        }
+        return self.collection.insert_one(habit_data)
 
-class Entry:
-    def __init__(self, habit_id, date, value):
-        self.habit_id = habit_id
-        self.date = date
-        self.value = value
+    def get_user_habits(self):
+        return list(self.collection.find({"user_id": ObjectId(self.user_id)}))
 
-    def save(self):
-        return get_entries_collection().insert_one({
-            'habit_id': self.habit_id,
-            'date': self.date,
-            'value': self.value
-        })
+    def update_habit(self, habit_id, count):
+        habit = self.collection.find_one({"_id": ObjectId(habit_id)})
+
+        # Check if the day has changed and reset the counter
+        if habit and habit.get("last_reset"):
+            last_reset = habit["last_reset"]
+            if (datetime.now() - last_reset).days >= 1:
+                # Save the current count to history before resetting
+                habit["history"].append({"date": last_reset, "count": habit["count"]})
+                count = 1  # Reset the count for the new day
+
+        # Update the habit count and the reset date
+        self.collection.update_one(
+            {"_id": ObjectId(habit_id)},
+            {
+                "$set": {"count": count, "last_reset": datetime.now()},
+                "$push": {"history": {"date": datetime.now(), "count": count}}
+            }
+        )
+
+    def reset_habit(self, habit_id):
+        self.collection.update_one(
+            {"_id": ObjectId(habit_id)},
+            {
+                "$set": {"count": 0},
+                "$push": {"history": {"date": datetime.now(), "count": 0}}
+            }
+        )
+
+    def delete_habit(self, habit_id):
+        self.collection.delete_one({"_id": ObjectId(habit_id)})

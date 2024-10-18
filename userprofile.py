@@ -1,48 +1,37 @@
 import streamlit as st
-import cloudinary
-import cloudinary.uploader
+from cloudinary.uploader import upload
+from cloudinary.utils import cloudinary_url
+from database import db
+from models import User
 import os
-from database import get_users_collection
-from dotenv import load_dotenv
 
-# Load environment variables
-load_dotenv()
+# Load Cloudinary credentials from .env
+CLOUDINARY_API_KEY = os.getenv("CLOUDINARY_API_KEY")
+CLOUDINARY_API_SECRET = os.getenv("CLOUDINARY_API_SECRET")
+CLOUDINARY_CLOUD_NAME = os.getenv("CLOUDINARY_CLOUD_NAME")
 
-# Set Cloudinary credentials
-cloudinary.config(
-    cloud_name=os.getenv("CLOUDINARY_CLOUD_NAME"),
-    api_key=os.getenv("CLOUDINARY_API_KEY"),
-    api_secret=os.getenv("CLOUDINARY_API_SECRET")
-)
+def upload_profile_pic(file):
+    """Uploads an image file to Cloudinary."""
+    result = upload(file, folder="profile_pics", cloud_name=CLOUDINARY_CLOUD_NAME)
+    return result['secure_url']
 
-def manage_profile(user_data):
-    st.header("Profile")
-    st.write(f"Username: {user_data['username']}")
+def profile_tab(user_id):
+    user = User(db)
+    user_data = user.find_user_by_id(user_id)
 
-    # Display the existing profile picture if available
-    if 'profile_picture' in user_data:
-        st.image(user_data['profile_picture'], width=150)  # Display existing profile picture
+    st.subheader("Your Profile")
+    
+    # Display current profile picture
+    if user_data.get("profile_pic"):
+        st.image(user_data["profile_pic"], width=150)
 
-    # Profile picture upload (using Cloudinary)
-    st.subheader("Update Profile Picture")
-    uploaded_file = st.file_uploader("Upload an image", type=["jpg", "jpeg", "png"])
+    # Profile picture upload
+    uploaded_file = st.file_uploader("Upload a new profile picture", type=["jpg", "jpeg", "png"])
+    
+    if uploaded_file is not None:
+        pic_url = upload_profile_pic(uploaded_file)
+        user.update_profile_pic(user_id, pic_url)
+        st.success("Profile picture updated!")
+        st.rerun()  # Rerun to show updated picture
 
-    if uploaded_file:
-        # Upload the file to Cloudinary
-        try:
-            cloudinary_response = cloudinary.uploader.upload(uploaded_file)
-            cloudinary_url = cloudinary_response['secure_url']
-
-            # Update the user's profile picture in the database
-            get_users_collection().update_one(
-                {"_id": user_data['_id']},
-                {"$set": {"profile_picture": cloudinary_url}}
-            )
-
-            st.success("Profile picture updated!")
-            st.image(cloudinary_url, width=150)  # Display newly uploaded image
-
-        except Exception as e:
-            st.error(f"An error occurred while uploading the image: {str(e)}")
-    else:
-        st.info("No file uploaded yet")
+    st.write(f"**Username:** {user_data['username']}")

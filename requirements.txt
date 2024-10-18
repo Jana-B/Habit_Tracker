@@ -1,0 +1,6 @@
+streamlit
+plotly
+python-dotenv
+pymongo
+cloudinary
+certifi

@@ -1,24 +1,31 @@
-# dashboard.py
 import streamlit as st
-from database import get_habits_collection
-from bson.objectid import ObjectId
+from models import Habit
+from database import db
+import matplotlib.pyplot as plt
 
-def show_dashboard(user_data):
-    st.header("Dashboard")
-    
-    # Get the user's habits from the database
-    habits_collection = get_habits_collection()
+def dashboard_tab(user_id):
+    if "habits" not in st.session_state:
+        habit = Habit(db, user_id)
+        st.session_state.habits = habit.get_user_habits()
 
-    # Use count_documents to get the total number of habits
-    total_habits = habits_collection.count_documents({"user_id": ObjectId(user_data['_id'])})
+    habits = st.session_state.habits
 
-    st.write(f"Total habits you're tracking: {total_habits}")
+    st.subheader("Habit Dashboard")
 
-    # Fetch the actual habits to display them
-    habits = habits_collection.find({"user_id": ObjectId(user_data['_id'])})
+    # Display habit stats and graphs
+    for h in habits:
+        st.write(f"**{h['name']}** - Today's Count: {h['count']}")
+        
+        # Plot historical habit data (per day)
+        if len(h['history']) > 0:
+            dates = [entry['date'] for entry in h['history']]
+            counts = [entry['count'] for entry in h['history']]
+            st.line_chart({"dates": dates, "counts": counts})
 
-    # Display habits
-    for habit in habits:
-        st.write(f"Habit: {habit['name']}, Color: {habit['color']}")
-
-    # You can add more visualizations here like charts, streaks, etc.
+    # Show a pie chart for a quick summary
+    fig, ax = plt.subplots()
+    colors = [h['color'] for h in habits]
+    counts = [h['count'] for h in habits]
+    labels = [h['name'] for h in habits]
+    ax.pie(counts, labels=labels, colors=colors, autopct='%1.1f%%')
+    st.pyplot(fig)
