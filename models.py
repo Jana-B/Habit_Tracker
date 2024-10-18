@@ -1,5 +1,6 @@
 from database import get_users_collection, get_habits_collection, get_entries_collection
 import bcrypt
+from bson.objectid import ObjectId
 
 class User:
     def __init__(self, username, hashed_password):
@@ -11,6 +12,10 @@ class User:
             'username': self.username,
             'hashed_password': self.hashed_password
         })
+
+    @staticmethod
+    def find_by_id(user_id):
+        return get_users_collection().find_one({"_id": ObjectId(user_id)})
 
     @staticmethod
     def find_by_username(username):
@@ -41,6 +46,10 @@ class Habit:
             'color': self.color,
             'icon': self.icon
         })
+        
+    @staticmethod
+    def find_by_user_id(user_id):
+        return list(get_habits_collection().find({'user_id': user_id}))
 
 class Entry:
     def __init__(self, habit_id, date, value):

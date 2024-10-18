@@ -1,7 +1,16 @@
 import streamlit as st
+from database import get_habits_collection
 from models import User
+from pymongo import MongoClient
+from datetime import datetime
+from bson.objectid import ObjectId
+from dashboard import show_dashboard
+from habits import manage_habits
+from userprofile import manage_profile
 
 def main():
+    st.set_page_config(layout="wide")  # For better layout with the sidebar
+
     st.title("Habit Tracker")
 
     if 'user_id' not in st.session_state:
@@ -18,9 +27,9 @@ def main():
             if st.button("Login"):
                 user_data = User.find_by_username(username)
                 if user_data and User.verify_password(password, user_data['hashed_password']):
-                    st.session_state.user_id = user_data['_id']
-                    st.success("Logged in successfully!")
-                    st.rerun()  # Use st.rerun() instead of st.experimental_rerun()
+                    st.session_state.user_id = str(user_data['_id'])  # Store as string
+                    st.success(f"Logged in successfully! Hello {user_data['username']}.")
+                    st.rerun()  # Reload after login
                 else:
                     st.error("Invalid username or password")
 
@@ -43,17 +52,29 @@ def main():
 
     else:
         # If user is logged in
-        user_data = User.find_by_username(st.session_state.user_id)
-        
-        # Check if user_data is None
-        if user_data is not None:
-            st.write(f"Welcome back, {user_data['username']}!")
+        user_data = User.find_by_id(st.session_state.user_id)
+
+        if user_data:
+            st.sidebar.title(f"Hello, {user_data['username']}!")
+
+            # Sidebar tabs
+            tab_selection = st.sidebar.radio("Navigate", ["Dashboard", "Habits", "Profile"])
+
+            if tab_selection == "Dashboard":
+                show_dashboard(user_data)
+            elif tab_selection == "Habits":
+                manage_habits(user_data)
+            elif tab_selection == "Profile":
+                manage_profile(user_data)
+
+            if st.sidebar.button("Logout"):
+                st.session_state.user_id = None
+                st.rerun()  # Reload to show login screen
+
         else:
             st.error("User data not found. Please log in again.")
-        
-        if st.button("Logout"):
             st.session_state.user_id = None
-            st.rerun()  # Use st.rerun() instead of st.experimental_rerun()
+            st.rerun()  # Reset if user data is corrupted
 
 if __name__ == "__main__":
     main()
