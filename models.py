@@ -33,23 +33,29 @@ class User:
         return bcrypt.checkpw(plain_password.encode('utf-8'), hashed_password)
 
 class Habit:
-    def __init__(self, user_id, name, color=None, icon=None):
+    def __init__(self, user_id, name, color=None, icon=None, count=0):
         self.user_id = user_id
         self.name = name
         self.color = color
         self.icon = icon
+        self.count = count 
 
     def save(self):
         return get_habits_collection().insert_one({
             'user_id': self.user_id,
             'name': self.name,
             'color': self.color,
-            'icon': self.icon
+            'icon': self.icon,
+            'count': self.count
         })
         
     @staticmethod
     def find_by_user_id(user_id):
         return list(get_habits_collection().find({'user_id': user_id}))
+    
+    @staticmethod
+    def update_count(habit_id, new_count):
+        get_habits_collection().update_one({"_id": habit_id}, {"$set": {"count": new_count}})
 
 class Entry:
     def __init__(self, habit_id, date, value):
