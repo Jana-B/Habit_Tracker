@@ -1,43 +1,44 @@
+import streamlit as st
 import bcrypt
-from database import get_users_collection
-from models import User
+from db import get_user_collection
 
-# Password hashing function
-def hash_password(password):
-    return bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+session_key = 'logged_in_user'
 
-# Password verification function
-def verify_password(plain_password, hashed_password):
-    return bcrypt.checkpw(plain_password.encode('utf-8'), hashed_password.encode('utf-8'))
+def get_user():
+    return st.session_state.get(session_key)
 
-# User registration function
-def register_user(username, password):
-    users_collection = get_users_collection()
+def login():
+    st.header("Login")
+    username = st.text_input("Username")
+    password = st.text_input("Password", type="password")
     
-    # Check if the user already exists
-    if users_collection.find_one({"username": username}):
-        return {"error": "User already exists"}
-    
-    # Hash the password and create a new user
-    hashed_password = hash_password(password)
-    user = User(users_collection)
-    
-    result = user.create_user(username, hashed_password)
-    
-    if result.inserted_id:
-        return {"success": "User registered successfully"}
-    else:
-        return {"error": "Registration failed"}
+    if st.button("Login"):
+        user_collection = get_user_collection()
+        user = user_collection.find_one({"username": username})
+        
+        if user and bcrypt.checkpw(password.encode(), user['password']):
+            st.session_state[session_key] = user
+            st.success("Logged in successfully!")
+            st.rerun()
+        else:
+            st.error("Invalid username or password")
 
-# User login function
-def login_user(username, password):
-    users_collection = get_users_collection()
-    user = User(users_collection)
+def signup():
+    st.header("Sign Up")
+    username = st.text_input("Username")
+    password = st.text_input("Password", type="password")
     
-    # Find user by username
-    user_data = user.find_user_by_username(username)
-    
-    if user_data and verify_password(password, user_data['hashed_password']):
-        return {"success": "Login successful", "user_id": str(user_data['_id'])}
-    else:
-        return {"error": "Invalid username or password"}
+    if st.button("Sign Up"):
+        user_collection = get_user_collection()
+        existing_user = user_collection.find_one({"username": username})
+        
+        if existing_user:
+            st.error("Username already exists")
+        else:
+            hashed_password = bcrypt.hashpw(password.encode(), bcrypt.gensalt())
+            user_collection.insert_one({"username": username, "password": hashed_password, "habits": []})
+            st.success("Account created! Please log in.")
+
+def logout():
+    st.session_state.pop(session_key, None)
+    st.rerun()

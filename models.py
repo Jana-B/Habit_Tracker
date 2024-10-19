@@ -1,79 +1,39 @@
 from pymongo import MongoClient
-from bson import ObjectId
-from datetime import datetime, timedelta
+from bson.objectid import ObjectId
+import os
+from dotenv import load_dotenv
 
+load_dotenv()
+
+client = MongoClient(os.getenv("MONGODB_URI"))
+db = client['habit_tracker']
+
+# User Model
 class User:
-    def __init__(self, db):
-        self.collection = db['users']
+    def __init__(self, name, password, profile_image=None):
+        self.name = name
+        self.password = password
+        self.profile_image = profile_image
 
-    def create_user(self, username, hashed_password):
-        user_data = {
-            "username": username,
-            "hashed_password": hashed_password,
-            "profile_pic": None
-        }
-        return self.collection.insert_one(user_data)
+    def save(self):
+        return db.users.insert_one(self.__dict__)
 
-    def find_user_by_username(self, username):
-        return self.collection.find_one({"username": username})
+    @staticmethod
+    def find_by_name(name):
+        return db.users.find_one({"name": name})
 
-    def find_user_by_id(self, user_id):
-        return self.collection.find_one({"_id": ObjectId(user_id)})
-
-    def update_profile_pic(self, user_id, pic_url):
-        self.collection.update_one(
-            {"_id": ObjectId(user_id)}, 
-            {"$set": {"profile_pic": pic_url}}
-        )
-
-
+# Habit Model
 class Habit:
-    def __init__(self, db, user_id):
-        self.collection = db['habits']
+    def __init__(self, user_id, name, color):
         self.user_id = user_id
+        self.name = name
+        self.color = color
+        self.counter = 0
+        self.history = []
 
-    def add_habit(self, name, color):
-        habit_data = {
-            "user_id": ObjectId(self.user_id),
-            "name": name,
-            "color": color,
-            "count": 0,
-            "history": [],
-            "last_reset": datetime.now()
-        }
-        return self.collection.insert_one(habit_data)
+    def save(self):
+        return db.habits.insert_one(self.__dict__)
 
-    def get_user_habits(self):
-        return list(self.collection.find({"user_id": ObjectId(self.user_id)}))
-
-    def update_habit(self, habit_id, count):
-        habit = self.collection.find_one({"_id": ObjectId(habit_id)})
-
-        # Check if the day has changed and reset the counter
-        if habit and habit.get("last_reset"):
-            last_reset = habit["last_reset"]
-            if (datetime.now() - last_reset).days >= 1:
-                # Save the current count to history before resetting
-                habit["history"].append({"date": last_reset, "count": habit["count"]})
-                count = 1  # Reset the count for the new day
-
-        # Update the habit count and the reset date
-        self.collection.update_one(
-            {"_id": ObjectId(habit_id)},
-            {
-                "$set": {"count": count, "last_reset": datetime.now()},
-                "$push": {"history": {"date": datetime.now(), "count": count}}
-            }
-        )
-
-    def reset_habit(self, habit_id):
-        self.collection.update_one(
-            {"_id": ObjectId(habit_id)},
-            {
-                "$set": {"count": 0},
-                "$push": {"history": {"date": datetime.now(), "count": 0}}
-            }
-        )
-
-    def delete_habit(self, habit_id):
-        self.collection.delete_one({"_id": ObjectId(habit_id)})
+    @staticmethod
+    def find_by_user(user_id):
+        return db.habits.find({"user_id": user_id})

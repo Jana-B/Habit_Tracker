@@ -1,31 +1,34 @@
 import streamlit as st
-from models import Habit
-from database import db
+import pandas as pd
 import matplotlib.pyplot as plt
+from datetime import datetime
 
-def dashboard_tab(user_id):
-    if "habits" not in st.session_state:
-        habit = Habit(db, user_id)
-        st.session_state.habits = habit.get_user_habits()
+def show_dashboard(user):
+    st.header("Dashboard")
+    habits = user['habits']
+    
+    if not habits:
+        st.write("No habits to show.")
+        return
+    
+    # Prepare habit data for visualization
+    data = []
+    for habit in habits:
+        habit_data = {
+            "Habit": habit['name'],
+            "Color": habit['color'],
+            "Count": habit['count'],
+            "Date": datetime.now().date()
+        }
+        data.append(habit_data)
 
-    habits = st.session_state.habits
+    df = pd.DataFrame(data)
 
-    st.subheader("Habit Dashboard")
-
-    # Display habit stats and graphs
-    for h in habits:
-        st.write(f"**{h['name']}** - Today's Count: {h['count']}")
-        
-        # Plot historical habit data (per day)
-        if len(h['history']) > 0:
-            dates = [entry['date'] for entry in h['history']]
-            counts = [entry['count'] for entry in h['history']]
-            st.line_chart({"dates": dates, "counts": counts})
-
-    # Show a pie chart for a quick summary
+    # Show habit data as bar chart
+    st.subheader("Today's Progress")
     fig, ax = plt.subplots()
-    colors = [h['color'] for h in habits]
-    counts = [h['count'] for h in habits]
-    labels = [h['name'] for h in habits]
-    ax.pie(counts, labels=labels, colors=colors, autopct='%1.1f%%')
+    df.plot(kind='bar', x='Habit', y='Count', color=df['Color'], ax=ax)
     st.pyplot(fig)
+
+    st.subheader("Habit Trends")
+    # Additional charts can be added here to show historical data, weekly/monthly trends
