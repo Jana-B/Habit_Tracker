@@ -1,61 +1,49 @@
-import streamlit as st
-from db import get_user_collection
-from bson.objectid import ObjectId
+from datetime import datetime
+from db import get_habit_collection
 
-def show_habits(user):
-    st.header("Your Habits")
-    user_collection = get_user_collection()
-    
-    habits = user['habits']
-    
-    # Display current habits
-    for habit in habits:
-        st.subheader(f"{habit['name']} ({habit['color']})")
-        st.write(f"Today's progress: {habit['count']}")
-        
-        col1, col2 = st.columns([1, 1])
-        with col1:
-            if st.button(f"Increase {habit['name']}", key=habit['_id']):
-                user_collection.update_one(
-                    {"_id": user['_id'], "habits._id": ObjectId(habit['_id'])},
-                    {"$inc": {"habits.$.count": 1}}
-                )
-                st.rerun()
-        with col2:
-            if st.button(f"Decrease {habit['name']}", key=f"dec_{habit['_id']}"):
-                user_collection.update_one(
-                    {"_id": user['_id'], "habits._id": ObjectId(habit['_id'])},
-                    {"$inc": {"habits.$.count": -1}}
-                )
-                st.rerun()
+def create_habit(name, color, userId):
+    habits = get_habit_collection()
+    new_habit = {
+        "userId": userId,
+        "name": name,
+        "color": color,
+        "created_at": datetime.now(),
+        "entries": []  # Stores habit progress per date
+    }
+    habits.insert_one(new_habit)
 
-    # Add new habit
-    st.subheader("Add a New Habit")
-    new_habit_name = st.text_input("Habit Name")
-    new_habit_color = st.color_picker("Habit Color", "#000000")
-    
-    if st.button("Add Habit"):
-        new_habit = {
-            "_id": ObjectId(),
-            "name": new_habit_name,
-            "color": new_habit_color,
-            "count": 0
-        }
-        user_collection.update_one(
-            {"_id": user['_id']},
-            {"$push": {"habits": new_habit}}
-        )
-        st.success("Habit added!")
-        st.rerun()
-    
-    # Option to remove habits
-    st.subheader("Remove a Habit")
-    habit_to_remove = st.selectbox("Select habit to remove", [h['name'] for h in habits])
-    
-    if st.button("Remove Habit"):
-        user_collection.update_one(
-            {"_id": user['_id']},
-            {"$pull": {"habits": {"name": habit_to_remove}}}
-        )
-        st.success(f"{habit_to_remove} removed!")
-        st.rerun()
+def get_user_habits(userId):
+    habits = get_habit_collection()
+    return list(habits.find({"userId": userId}))
+
+def update_habit_name(habitId, new_name):
+    habits = get_habit_collection()
+    habits.update_one({"_id": habitId}, {"$set": {"name": new_name}})
+
+def delete_habit(habitId):
+    habits = get_habit_collection()
+    habits.delete_one({"_id": habitId})
+
+def increment_habit(habitId, date):
+    """Increases the habit count for a specific date by 1."""
+    habits = get_habit_collection()
+    habits.update_one(
+        {"_id": habitId, "entries.date": date},
+        {"$inc": {"entries.$.value": 1}}  # Increment value by 1
+    )
+
+def decrement_habit(habitId, date):
+    """Decreases the habit count for a specific date by 1."""
+    habits = get_habit_collection()
+    habits.update_one(
+        {"_id": habitId, "entries.date": date},
+        {"$inc": {"entries.$.value": -1}}  # Decrement value by 1
+    )
+
+def add_entry_if_missing(habitId, date):
+    """Ensures that there's an entry for the habit for the given date."""
+    habits = get_habit_collection()
+    habits.update_one(
+        {"_id": habitId, "entries.date": {"$ne": date}},
+        {"$push": {"entries": {"date": date, "value": 0}}}  # Add entry if not present
+    )

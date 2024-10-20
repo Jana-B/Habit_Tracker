@@ -1,44 +1,32 @@
-import streamlit as st
 import bcrypt
+import streamlit as st
 from db import get_user_collection
 
-session_key = 'logged_in_user'
-
-def get_user():
-    return st.session_state.get(session_key)
-
-def login():
-    st.header("Login")
-    username = st.text_input("Username")
-    password = st.text_input("Password", type="password")
+# User Registration
+def register_user(username, password):
+    users = get_user_collection()
+    if users.find_one({"username": username}):
+        return False, "Username already exists"
     
-    if st.button("Login"):
-        user_collection = get_user_collection()
-        user = user_collection.find_one({"username": username})
-        
-        if user and bcrypt.checkpw(password.encode(), user['password']):
-            st.session_state[session_key] = user
-            st.success("Logged in successfully!")
-            st.rerun()
-        else:
-            st.error("Invalid username or password")
+    hashed_pw = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
+    new_user = {"username": username, "password": hashed_pw}
+    users.insert_one(new_user)
+    return True, "User registered successfully"
 
-def signup():
-    st.header("Sign Up")
-    username = st.text_input("Username")
-    password = st.text_input("Password", type="password")
+# User Login
+def login_user(username, password):
+    users = get_user_collection()
+    user = users.find_one({"username": username})
     
-    if st.button("Sign Up"):
-        user_collection = get_user_collection()
-        existing_user = user_collection.find_one({"username": username})
-        
-        if existing_user:
-            st.error("Username already exists")
-        else:
-            hashed_password = bcrypt.hashpw(password.encode(), bcrypt.gensalt())
-            user_collection.insert_one({"username": username, "password": hashed_password, "habits": []})
-            st.success("Account created! Please log in.")
+    if user and bcrypt.checkpw(password.encode('utf-8'), user['password']):
+        st.session_state["logged_in"] = True
+        st.session_state["username"] = username
+        return True, "Login successful"
+    
+    return False, "Invalid credentials"
 
-def logout():
-    st.session_state.pop(session_key, None)
-    st.rerun()
+# User Logout
+def logout_user():
+    st.session_state["logged_in"] = False
+    st.session_state["username"] = None
+    st.success("Logged out successfully")

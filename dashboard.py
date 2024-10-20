@@ -1,34 +1,40 @@
 import streamlit as st
 import pandas as pd
-import matplotlib.pyplot as plt
-from datetime import datetime
+import altair as alt
+from db import get_habit_collection
+from datetime import datetime, timedelta
 
-def show_dashboard(user):
-    st.header("Dashboard")
-    habits = user['habits']
+def get_habit_data(userId):
+    habits = get_habit_collection()
+    user_habits = habits.find({"userId": userId})
     
-    if not habits:
-        st.write("No habits to show.")
+    habit_data = {}
+    for habit in user_habits:
+        habit_data[habit['name']] = habit['entries']
+    
+    return habit_data
+
+def create_chart(habit_name, habit_entries, color):
+    df = pd.DataFrame(habit_entries)
+    df['date'] = pd.to_datetime(df['date'])
+    
+    chart = alt.Chart(df).mark_line(color=color).encode(
+        x=alt.X('date:T', title='Date', axis=alt.Axis(format='%d-%m')),
+        y=alt.Y('value:Q', title=habit_name),
+        tooltip=['date:T', 'value:Q']
+    ).properties(width=600, height=300)
+    
+    return chart
+
+def display_dashboard(userId):
+    st.title("Your Dashboard")
+    
+    habit_data = get_habit_data(userId)
+    
+    if not habit_data:
+        st.write("No habits to display.")
         return
     
-    # Prepare habit data for visualization
-    data = []
-    for habit in habits:
-        habit_data = {
-            "Habit": habit['name'],
-            "Color": habit['color'],
-            "Count": habit['count'],
-            "Date": datetime.now().date()
-        }
-        data.append(habit_data)
-
-    df = pd.DataFrame(data)
-
-    # Show habit data as bar chart
-    st.subheader("Today's Progress")
-    fig, ax = plt.subplots()
-    df.plot(kind='bar', x='Habit', y='Count', color=df['Color'], ax=ax)
-    st.pyplot(fig)
-
-    st.subheader("Habit Trends")
-    # Additional charts can be added here to show historical data, weekly/monthly trends
+    for habit_name, entries in habit_data.items():
+        if entries:
+            st.altair_chart(create_chart(habit_name, entries, color="#FF5733"))  # Default color example

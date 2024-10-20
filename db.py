@@ -1,14 +1,18 @@
-import pymongo
-import certifi
 import os
+import certifi
+from pymongo import MongoClient
 from dotenv import load_dotenv
 
+# Load environment variables
 load_dotenv()
 
-def initialize_db():
-    client = pymongo.MongoClient(os.getenv("MONGODB_URI"), tlsCAFile=certifi.where())
-    return client["habittracker"]
+# MongoDB Connection
+ca = certifi.where()
+client = MongoClient(os.getenv("MONGO_URI"), tlsCAFile=ca)
+db = client['habittracker']
 
 def get_user_collection():
-    db = initialize_db()
     return db['users']
+
+def get_habit_collection():
+    return db['habits']
