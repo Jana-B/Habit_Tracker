@@ -1,6 +1,6 @@
 import os
 import certifi
-from pymongo import MongoClient
+from pymongo import MongoClient, ASCENDING
 from dotenv import load_dotenv
 
 # Load environment variables
@@ -16,3 +16,14 @@ def get_user_collection():
 
 def get_habit_collection():
     return db['habits']
+
+def create_unique_username_index():
+    users_collection = get_user_collection()
+    
+    # Create a unique index on the username field
+    users_collection.create_index([("username", ASCENDING)], unique=True)
+    
+    # print("Unique index created on username field")
+
+# Call this function when your application starts
+create_unique_username_index()

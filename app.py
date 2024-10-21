@@ -1,6 +1,7 @@
 from datetime import datetime
 import streamlit as st
 from auth import register_user, login_user, logout_user
+from db import create_unique_username_index
 from habit import create_habit, get_user_habits, update_habit_name, delete_habit, decrement_habit, increment_habit, add_entry_if_missing
 from userprofile import upload_profile_image, get_profile_image
 from dashboard import display_dashboard
@@ -32,6 +33,7 @@ def render_sidebar():
 
 # Main app logic
 def main():
+    create_unique_username_index()
     page = render_sidebar()
 
     if page == "Register":

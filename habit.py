@@ -1,10 +1,10 @@
 from datetime import datetime
 from db import get_habit_collection
 
-def create_habit(name, color, userId):
+def create_habit(name, color, user):
     habits = get_habit_collection()
     new_habit = {
-        "userId": userId,
+        "user": user,
         "name": name,
         "color": color,
         "created_at": datetime.now(),
@@ -12,9 +12,9 @@ def create_habit(name, color, userId):
     }
     habits.insert_one(new_habit)
 
-def get_user_habits(userId):
+def get_user_habits(user):
     habits = get_habit_collection()
-    return list(habits.find({"userId": userId}))
+    return list(habits.find({"user": user}))
 
 def update_habit_name(habitId, new_name):
     habits = get_habit_collection()

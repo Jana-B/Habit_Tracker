@@ -1,9 +1,9 @@
 from pymongo import MongoClient
 from datetime import datetime, timedelta
-from bson.objectid import ObjectId
 import certifi
 import bcrypt
 import os
+import random
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
@@ -26,20 +26,20 @@ def insert_test_user():
     existing_user = users_collection.find_one({"username": "user1"})
     if existing_user:
         print("Test user already exists.")
-        return existing_user["_id"]
+        return "user1"
     hashed_password = hash_password("password1")
     user = {
         "username": "user1",
         "password": hashed_password
     }
-    result = users_collection.insert_one(user)
-    print(f"Inserted test user 'user1' with ID: {result.inserted_id}")
-    return result.inserted_id
+    users_collection.insert_one(user)
+    print(f"Inserted test user 'user1'")
+    return "user1"
 
 # Insert test habits for user1
-def insert_test_habits(user_id):
+def insert_test_habits(username):
     habits_collection = db["habits"]
-    existing_habits = habits_collection.find_one({"userId": user_id})
+    existing_habits = habits_collection.find_one({"user": username})
     
     if existing_habits:
         print("Test habits already exist for user1.")
@@ -48,21 +48,21 @@ def insert_test_habits(user_id):
     # Define 3 habits
     habits = [
         {
-            "userId": user_id,
+            "user": username,
             "name": "Drinking Water",
             "color": "#00f9ff",
             "created_at": datetime.now(),
             "entries": []
         },
         {
-            "userId": user_id,
+            "user": username,
             "name": "Coffee",
             "color": "#ffae00",
             "created_at": datetime.now(),
             "entries": []
         },
         {
-            "userId": user_id,
+            "user": username,
             "name": "Daily Reading",
             "color": "#ff007f",
             "created_at": datetime.now(),
@@ -76,9 +76,9 @@ def insert_test_habits(user_id):
     print("Inserted 3 test habits for user1.")
 
 # Add 2 months of test data for habits
-def add_habit_entries():
+def add_habit_entries(username):
     habits_collection = db["habits"]
-    habits = list(habits_collection.find({"userId": user_id}))
+    habits = list(habits_collection.find({"user": username}))
     
     if not habits:
         print("No habits found to add entries to.")
@@ -108,15 +108,13 @@ def generate_random_value(habit_name):
     return 0
 
 if __name__ == "__main__":
-    import random
-    
     # Step 1: Insert test user 'user1'
-    user_id = insert_test_user()
+    username = insert_test_user()
 
     # Step 2: Insert 3 test habits for 'user1'
-    insert_test_habits(user_id)
+    insert_test_habits(username)
 
     # Step 3: Add 2 months of daily habit tracking data
-    add_habit_entries()
+    add_habit_entries(username)
 
     print("Test data added successfully.")
