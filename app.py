@@ -69,12 +69,17 @@ def main():
             st.title("Manage Habits")
             
             # Habit Creation
-            name = st.text_input("Habit Name")
-            color = st.color_picker("Habit Color", "#00f900")
-            if st.button("Create Habit"):
-                create_habit(name, color, st.session_state["username"])
-                st.success("Habit created successfully!")
-                st.rerun()  # Refresh page after creating habit
+            with st.form(key='create_habit'):
+                col1, col2 = st.columns([3, 1])
+                with col1:
+                    name = st.text_input("Habit Name")
+                with col2:
+                    color = st.color_picker("Color", "#00f900")
+                submit_button = st.form_submit_button(label="Create Habit")
+                if submit_button:
+                    create_habit(name, color, st.session_state["username"])
+                    st.success("Habit created successfully!")
+                    st.rerun()  # Refresh page after creating habit
 
             # Display User's Habits
             st.subheader("Your Habits")
@@ -82,37 +87,40 @@ def main():
             today = datetime.now().strftime("%Y-%m-%d")
 
             for habit in habits:
-                st.write(f"**{habit['name']}**")
-                
-                # Ensure the habit has an entry for today
-                add_entry_if_missing(habit["_id"], today)
-                
-                # Find today's entry
-                today_entry = next((entry for entry in habit["entries"] if entry["date"] == today), {"value": 0})
-                
-                st.write(f"Today's Progress: {today_entry['value']}")
-                
-                # Increment and Decrement buttons
-                if st.button(f"Increase ({habit['name']})", key=f"inc_{habit['_id']}"):
-                    increment_habit(habit["_id"], today)
-                    st.rerun()  # Refresh page after incrementing
-                
-                if st.button(f"Decrease ({habit['name']})", key=f"dec_{habit['_id']}"):
-                    decrement_habit(habit["_id"], today)
-                    st.rerun()  # Refresh page after decrementing
+                with st.expander(f"**{habit['name']}**", expanded=True):
+                    # Ensure the habit has an entry for today
+                    add_entry_if_missing(habit["_id"], today)
+                    
+                    # Find today's entry
+                    today_entry = next((entry for entry in habit["entries"] if entry["date"] == today), {"value": 0})
+                    
+                    col1, col2, col3 = st.columns([2, 1, 1])
+                    with col1:
+                        st.markdown(f"<p style='color:{habit['color']};'>Today's Progress: {today_entry['value']}</p>", unsafe_allow_html=True)
+                    with col2:
+                        if st.button("➕", key=f"inc_{habit['_id']}"):
+                            increment_habit(habit["_id"], today)
+                            st.rerun()
+                    with col3:
+                        if st.button("➖", key=f"dec_{habit['_id']}"):
+                            decrement_habit(habit["_id"], today)
+                            st.rerun()
 
-                # Edit Habit Name
-                new_name = st.text_input(f"Edit Habit Name ({habit['name']})", value=habit["name"], key=f"edit_{habit['_id']}")
-                if st.button(f"Update Habit ({habit['name']})", key=f"update_{habit['_id']}"):
-                    update_habit_name(habit["_id"], new_name)
-                    st.success(f"Habit '{habit['name']}' updated!")
-                    st.rerun()  # Refresh page after updating
-
-                # Delete Habit
-                if st.button(f"Delete Habit ({habit['name']})", key=f"del_{habit['_id']}"):
-                    delete_habit(habit["_id"])
-                    st.warning(f"Habit '{habit['name']}' deleted!")
-                    st.rerun()  # Refresh page after deleting
+                    # Edit and Delete options
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        new_name = st.text_input("New name", value=habit["name"], key=f"edit_{habit['_id']}")
+                        if st.button("✏️ Update", key=f"update_{habit['_id']}"):
+                            update_habit_name(habit["_id"], new_name)
+                            st.success(f"Habit updated!")
+                            st.rerun()
+                    with col2:
+                        st.write("") # For alignment
+                        st.write("")
+                        if st.button("🗑️ Delete", key=f"del_{habit['_id']}"):
+                            delete_habit(habit["_id"])
+                            st.warning(f"Habit deleted!")
+                            st.rerun()
 
         elif page == "Profile":
             st.title("Profile")
